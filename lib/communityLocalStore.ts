@@ -1,9 +1,12 @@
+import type { CommunityAttachments } from "@/types/community/community.type";
 import type { FeedPost } from "@/types/community/communityFeed.type";
 
 // 백엔드 커뮤니티 API가 준비되기 전까지, 새로 쓴 글과 좋아요 상태를 이 브라우저의 localStorage 에 보관합니다.
 // API가 생기면 이 파일을 쓰는 곳(community.api.ts, communityFeed.api.ts)을 서버 요청으로 바꾸고 이 파일은 지웁니다.
 export interface LocalPost extends FeedPost {
     content: string;
+    prefix?: string;
+    attachments?: CommunityAttachments;
 }
 
 const POSTS_KEY = "community-local-posts";

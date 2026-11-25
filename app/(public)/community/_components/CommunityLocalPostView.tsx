@@ -27,5 +27,14 @@ export default function CommunityLocalPostView({ postId }: CommunityLocalPostVie
         );
     }
 
-    return <PostDetailView post={toPostDetail(post, post.content.split("\n"))} />;
+    const detail = toPostDetail(post, post.content.split("\n"));
+    return (
+        <PostDetailView
+            post={{
+                ...detail,
+                tags: post.prefix ? [...detail.tags, `#${post.prefix}`] : detail.tags,
+                attachments: post.attachments,
+            }}
+        />
+    );
 }

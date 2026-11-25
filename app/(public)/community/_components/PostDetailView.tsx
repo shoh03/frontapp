@@ -3,7 +3,9 @@ import { ArrowUpRight, Eye, MessageCircle } from "lucide-react";
 import type { CommunityPostDetail } from "@/types/community/community.type";
 import CommunityCommentSection from "./CommunityCommentSection";
 import CommunityLikeButton from "./CommunityLikeButton";
+import PostAttachments from "./PostAttachments";
 import PostTag from "./PostTag";
+import RelativeTime from "./RelativeTime";
 
 interface PostDetailViewProps {
     post: CommunityPostDetail;
@@ -24,7 +26,7 @@ export default function PostDetailView({ post }: PostDetailViewProps) {
                 <article aria-labelledby="community-post-title" className="rounded-feed-lg bg-surface p-9">
                     <div className="flex items-center gap-2">
                         <PostTag type={post.badge === "아이맘" ? "육아맘" : "예비맘"} />
-                        <span className="text-xs text-mute-light">· {post.postedAgo}</span>
+                        <span className="text-xs text-mute-light">· <RelativeTime iso={post.publishedAt} fallback={post.postedAgo} /></span>
                     </div>
                     <h1 id="community-post-title" className="mt-3 max-w-[480px] text-[32px] leading-[1.4] font-extrabold">{post.title}</h1>
 
@@ -41,7 +43,11 @@ export default function PostDetailView({ post }: PostDetailViewProps) {
                         </span>
                     </div>
 
-                    <div aria-hidden="true" className="mt-[22px] h-[300px] rounded-feed-lg bg-placeholder" />
+                    {post.attachments ? (
+                        <PostAttachments attachments={post.attachments} postId={post.id} />
+                    ) : (
+                        <div aria-hidden="true" className="mt-[22px] h-[300px] rounded-feed-lg bg-placeholder" />
+                    )}
 
                     <div className="mt-[22px] space-y-[15px] text-base leading-[30px]">
                         {post.contents.map((paragraph, index) => (
