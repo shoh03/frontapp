@@ -14,7 +14,7 @@ interface Props {
   center: MapPosition;
   facilities: MapFacility[];
   selectedKey: string | null;
-  onSelect: (key: string) => void;
+  onSelect: (key: string | null) => void;
   onBoundsChange: (bounds: MapBounds) => void;
   onLocate: () => void;
   isLocating: boolean;
@@ -73,6 +73,8 @@ export default function KakaoHospitalMap({
       clearTimeout(timer);
       timer = setTimeout(publishBounds, 400);
     };
+    // SDK의 지도 클릭만 처리하므로 드래그 이동이나 핀·컨트롤 조작은 선택을 해제하지 않습니다.
+    const onMapClick = () => onSelect(null);
 
     maps.load(() => {
       if (!active || !container.current) return;
@@ -87,6 +89,7 @@ export default function KakaoHospitalMap({
         map.current = instance;
         instance.addControl(new maps.ZoomControl(), maps.ControlPosition.RIGHT);
         maps.event.addListener(instance, "idle", onIdle);
+        maps.event.addListener(instance, "click", onMapClick);
         setFailed(false);
         setInitialized(true);
         publishBounds();
@@ -98,10 +101,13 @@ export default function KakaoHospitalMap({
     return () => {
       active = false;
       clearTimeout(timer);
-      if (instance) maps.event.removeListener(instance, "idle", onIdle);
+      if (instance) {
+        maps.event.removeListener(instance, "idle", onIdle);
+        maps.event.removeListener(instance, "click", onMapClick);
+      }
       map.current = null;
     };
-  }, [sdkReady, onBoundsChange]);
+  }, [sdkReady, onBoundsChange, onSelect]);
 
   useEffect(() => {
     if (!initialized || !map.current || !window.kakao) return;
