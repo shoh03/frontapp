@@ -5,6 +5,8 @@ import "@/styles/tailwind/tailwind.theme.css"
 import { pretendard, nanumSquareRound } from "@/styles/font/font";
 import { cn } from "@/lib/utils";
 import ReactQueryProvider from "@/providers/ReactQueryProvider";
+import { Suspense } from "react";
+import AuthHydration from "@/components/auth/AuthHydration";
 
 
 export const metadata: Metadata = {
@@ -17,6 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={cn(pretendard.variable, nanumSquareRound.variable, "font-sans [scrollbar-gutter:stable_both-edges]")}>
       <body className="min-w-330 font-pretendard">
         <ReactQueryProvider>
+          <Suspense fallback={null}><AuthHydration /></Suspense>
           {children}
         </ReactQueryProvider>
       </body>

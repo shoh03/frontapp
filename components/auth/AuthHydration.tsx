@@ -1,78 +1,32 @@
 "use client";
 
 import useAuthStore from "@/stores/useAuthStore";
-import type { UserDTO } from "@/types/user/user.type";
-import type { ApiResponseDTO } from "@/types/common/common.type";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { getCurrentUserApi } from "@/api/auth/auth.api";
 
 export default function AuthHydration() {
-  const { setIsAuthenticated, setUser } = useAuthStore();
+  const pathname = usePathname();
 
   useEffect(() => {
+    const controller = new AbortController();
+    const version = useAuthStore.getState().sessionVersion;
     const checkAuthApi = async () => {
       try {
-        // TODO: /members/me와 /auth/refresh는 현재 백엔드에 미구현입니다.
-        // 팀의 내 정보 조회/재발급 API가 확정되면 경로와 메서드를 연결합니다.
-        // 1. 최초 한 번 accessToken으로 유저의 정보를 가져오기
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/members/me`,
-          {
-            method: "POST",
-            credentials: "include",
-          },
-        );
-
-        if (response.ok) {
-          // accessToken이 유효하다면
-          const result: ApiResponseDTO<UserDTO> = await response.json();
-          setUser(result.data);
-          setIsAuthenticated(result.success && result.data !== null);
-          return;
+        const user = await getCurrentUserApi(controller.signal);
+        const state = useAuthStore.getState();
+        if (!controller.signal.aborted && state.sessionVersion === version) {
+          state.setSession(user);
         }
-        if (response.status === 401) {
-          // accessToken이 만료라면
-          // refreshToken으로 accessToken을 재발급
-          const refreshResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/refresh`,
-            {
-              method: "GET",
-              credentials: "include",
-            },
-          );
-
-          if (refreshResponse.ok) {
-            // 3. 재발급 완료라면, 새로운 토큰으로 다시 유저의 정보 재요청
-            const retryReponse = await fetch(
-              `${process.env.NEXT_PUBLIC_BACKEND_URL}/members/me`,
-              {
-                method: "POST",
-                credentials: "include",
-              },
-            );
-
-            if (retryReponse.ok) {
-              const retryResult: ApiResponseDTO<UserDTO> =
-                await retryReponse.json();
-              setUser(retryResult.data);
-              setIsAuthenticated(
-                retryResult.success && retryResult.data !== null,
-              );
-              return;
-            }
-          }
-        }
-
-        // 2-2. 만약 refreshToken도 만료되었다면 로그아웃 처리
-        setUser(null);
-        setIsAuthenticated(false);
       } catch {
-        setUser(null);
-        setIsAuthenticated(false);
+        // 취소된 요청이나 일시적 통신 장애를 로그아웃으로 오인하지 않습니다.
+        // 인증 실패(401/403)는 getCurrentUserApi가 null로 반환합니다.
       }
     };
 
-    checkAuthApi();
-  }, [setIsAuthenticated, setUser]);
+    void checkAuthApi();
+    return () => controller.abort();
+  }, [pathname]);
 
   return null;
 }

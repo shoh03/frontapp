@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import LoginButton from "@/components/common/LoginButton";
+import UserAccountMenu from "./UserAccountMenu";
 import { user_header_navigation } from "@/types/navigation/navigation.type";
 
 export default function UserHeader() {
     return (
         <header className="sticky top-0 z-50 min-w-330 bg-white shadow-[0_4px_18px_rgb(0_0_0/0.08)] font-pretendard">
-            <div className="mx-auto grid min-h-20 w-330 min-w-330 grid-cols-[280px_minmax(0,1fr)_110px] items-center gap-x-6">
+            <div className="mx-auto grid min-h-20 w-330 min-w-330 grid-cols-[260px_minmax(0,1fr)_180px] items-center gap-x-6">
                 <Link
                     href="/"
                     className="inline-flex w-fit items-center gap-2 rounded-sm text-[26px] leading-8.5 font-semibold text-primary no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
@@ -36,7 +36,7 @@ export default function UserHeader() {
                         ))}
                     </ul>
                 </nav>
-                <LoginButton className="justify-self-end" />
+                <UserAccountMenu />
             </div>
         </header>
     );
