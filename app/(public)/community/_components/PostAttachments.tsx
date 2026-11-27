@@ -13,32 +13,15 @@ interface PostAttachmentsProps {
 }
 
 // 글 상세에 보이는 첨부(사진·동영상·장소·투표)입니다.
-// 서버에 저장된 글(poll.votes 가 있음)은 투표를 서버에 기록하고, 예전 브라우저 저장 글은 이 브라우저에서만 집계합니다.
 export default function PostAttachments({ attachments, postId }: PostAttachmentsProps) {
     const { photos, place, poll } = attachments;
-    const videos = attachments.videos ?? (attachments.video ? [attachments.video] : []);
-    const isServerPoll = !!poll?.votes;
+    const { videos } = attachments;
+    const hasPoll = !!poll;
     const allowMultiple = !!poll?.allowMultiple;
-    const voteKey = `community-vote-${postId}`;
 
-    const [votes, setVotes] = useState<number[]>(() => {
-        if (poll?.votes) return poll.votes;
-        const empty = poll ? poll.options.map(() => 0) : [];
-        if (typeof window === "undefined") return empty;
-        try {
-            const saved = JSON.parse(window.localStorage.getItem(voteKey) ?? "null") as number[] | null;
-            return saved && saved.length === empty.length ? saved : empty;
-        } catch {
-            return empty;
-        }
-    });
+    const [votes, setVotes] = useState<number[]>(poll?.votes ?? []);
     // 내가 투표한 항목입니다. 비어 있으면 아직 투표하지 않은 상태입니다.
-    const [voted, setVoted] = useState<number[]>(() => {
-        if (isServerPoll) return poll?.myVotes ?? [];
-        if (typeof window === "undefined") return [];
-        const saved = window.localStorage.getItem(`${voteKey}-mine`);
-        return saved === null ? [] : [Number(saved)];
-    });
+    const [voted, setVoted] = useState<number[]>(poll?.myVotes ?? []);
     const [voterCount, setVoterCount] = useState(poll?.voterCount ?? 0);
     // 복수 선택 투표에서 제출하기 전에 고른 항목입니다.
     const [selected, setSelected] = useState<number[]>([]);
@@ -47,41 +30,31 @@ export default function PostAttachments({ attachments, postId }: PostAttachments
 
     // 서버 렌더에서는 로그인 쿠키를 알 수 없으므로, 브라우저에서 내 투표와 최신 집계를 다시 읽습니다.
     useEffect(() => {
-        if (!isServerPoll) return;
+        if (!hasPoll) return;
         let cancelled = false;
         fetchServerPost(postId, true).then((fresh) => {
             const freshPoll = fresh?.attachments?.poll;
-            if (cancelled || !freshPoll?.votes) return;
+            if (cancelled || !freshPoll) return;
             setVotes(freshPoll.votes);
-            setVoted(freshPoll.myVotes ?? []);
-            setVoterCount(freshPoll.voterCount ?? 0);
+            setVoted(freshPoll.myVotes);
+            setVoterCount(freshPoll.voterCount);
         });
         return () => {
             cancelled = true;
         };
-    }, [isServerPoll, postId]);
+    }, [hasPoll, postId]);
 
-    // 예전 브라우저 저장 글의 투표는 단일 선택이라 첫 항목만 저장합니다.
     const submitVote = async (indexes: number[]) => {
         if (hasVoted || isVoting || indexes.length === 0) return;
-
-        if (!isServerPoll) {
-            const next = votes.map((count, i) => (indexes.includes(i) ? count + 1 : count));
-            setVotes(next);
-            setVoted(indexes);
-            window.localStorage.setItem(voteKey, JSON.stringify(next));
-            window.localStorage.setItem(`${voteKey}-mine`, String(indexes[0]));
-            return;
-        }
 
         setIsVoting(true);
         try {
             const updated = await voteCommunityPost(postId, indexes);
             const updatedPoll = updated.attachments?.poll;
-            if (updatedPoll?.votes) {
+            if (updatedPoll) {
                 setVotes(updatedPoll.votes);
-                setVoted(updatedPoll.myVotes ?? indexes);
-                setVoterCount(updatedPoll.voterCount ?? 0);
+                setVoted(updatedPoll.myVotes);
+                setVoterCount(updatedPoll.voterCount);
             }
         } catch (error) {
             window.alert(error instanceof Error ? error.message : "투표에 실패했습니다.");

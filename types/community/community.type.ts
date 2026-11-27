@@ -25,20 +25,10 @@ export interface CommunityPost {
     isFollowing: boolean;
 }
 
-export interface CommunityComment {
-    id: string;
-    author: CommunityAuthor;
-    content: string;
-    postedAgo: string;
-}
-
 // 게시글 상세 화면에서 사용하는 형식입니다.
 export interface CommunityPostDetail extends CommunityPost {
     contents: string[];
-    commentList: CommunityComment[];
     attachments?: CommunityAttachments;
-    // 서버에 저장된 글이면 좋아요·댓글·조회수를 서버와 주고받습니다.
-    isServerPost?: boolean;
     // 로그인 쿠키를 보내 읽었을 때, 내가 쓴 글이면 true 입니다.
     isMine?: boolean;
 }
@@ -82,18 +72,16 @@ export interface CommunityPostPlace {
 export interface CommunityPoll {
     question: string;
     options: string[];
-    // 아래 값은 서버에 저장된 투표일 때만 있습니다. 없으면 이 브라우저에서만 집계하는 예전 글입니다.
-    votes?: number[];
-    allowMultiple?: boolean;
-    voterCount?: number;
-    myVotes?: number[];
+    votes: number[];
+    allowMultiple: boolean;
+    voterCount: number;
+    myVotes: number[];
 }
 
 // 글에 붙이는 첨부(사진·동영상·장소·투표)입니다.
 export interface CommunityAttachments {
     photos: string[];
-    videos?: CommunityVideo[];
-    video?: CommunityVideo | null; // 이 브라우저에 저장된 예전 글
+    videos: CommunityVideo[];
     place: CommunityPostPlace | null;
     poll: CommunityPoll | null;
 }

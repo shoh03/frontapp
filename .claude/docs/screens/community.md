@@ -217,7 +217,7 @@ icon 22×22, icon padding 10
 
 | 컴포넌트 | props | 설명 |
 |---|---|---|
-| `CommunityPage` | — | 라우트 진입점. 레이아웃과 상태 보유 |
+| `CommunityLayout` | — | 라우트 진입점. 레이아웃과 상태 보유 |
 | `PostSearchInput` | `value, onChange, placeholder` | 검색 입력. 디바운스는 상위에서 처리 |
 | `CategoryList` | `items, activeId, onSelect` | 카테고리 목록 |
 | `CategoryItem` | `label, color, active, onClick` | 색 점 + 라벨 한 줄 |
@@ -225,7 +225,6 @@ icon 22×22, icon padding 10
 | `SortTabs` | `value, onChange` | `'popular' \| 'latest'` |
 | `PostList` | `posts, loading, onPostClick` | 카드 목록 + 스켈레톤 |
 | `PostCard` | `post, onClick` | 게시글 카드 한 장 |
-| `PostTag` | `type` | `'예비맘' \| '육아맘'` 칩 |
 | `Pagination` | `page, totalPages, onChange` | 번호 + 이전/다음 |
 | `DailyQuoteCard` | `message` | 오늘의 한마디 |
 | `PopularProductCard` | `products, onMoreClick` | 인기상품 모듈 전체 |
@@ -450,7 +449,7 @@ GET /api/posts?category=all&sort=popular&q=&page=1&size=10
 | 할인율 | `32%` 형식, 0이면 표시하지 않음 |
 | 좋아요·댓글 | 999 초과 시 `999+` |
 
-API가 아직 없으면 위 타입에 맞는 목 데이터를 `mock/posts.ts`에 두고, 페이징·정렬·검색을 클라이언트에서 흉내 낸다. **타입은 바꾸지 않는다.**
+목록은 백엔드 API(`GET /communities/posts`)에서 받는다. 페이징·정렬·검색은 서버가 처리하며, 목 데이터는 두지 않는다. **타입은 바꾸지 않는다.**
 
 ---
 
@@ -524,7 +523,6 @@ Tailwind 반응형 접두사(`sm:` `md:` `lg:`)를 임의로 붙이지 않는다
 
 - 페이지: `app/community/page.tsx`
 - 컴포넌트: `app/community/_components/` 아래에 7번 이름 그대로
-- 목 데이터: `app/community/_mock/posts.ts` (API 미연동 시)
 - 토큰: Tailwind 설정 또는 전역 CSS 변수
 
 ### 완료 기준

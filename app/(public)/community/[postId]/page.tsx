@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCommunityPost } from "@/api/community/community.api";
-import { isLocalPostId } from "@/lib/communityLocalStore";
-import CommunityLocalPostView from "../_components/CommunityLocalPostView";
 import PostDetailView from "../_components/PostDetailView";
 
 export const metadata: Metadata = {
@@ -22,10 +20,7 @@ export default function Page({ params }: { params: Promise<{ postId: string }> }
 async function PostContent({ params }: { params: Promise<{ postId: string }> }) {
     const { postId } = await params;
     const post = await getCommunityPost(postId);
-    if (post) return <PostDetailView post={post} />;
+    if (!post) notFound();
 
-    // 이 브라우저에서 새로 쓴 글은 서버가 알지 못하므로 클라이언트에서 읽어 그립니다.
-    if (isLocalPostId(postId)) return <CommunityLocalPostView postId={postId} />;
-
-    notFound();
+    return <PostDetailView post={post} />;
 }

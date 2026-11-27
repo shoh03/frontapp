@@ -9,7 +9,7 @@ export interface FeedPost {
     id: number;
     category: Exclude<FeedCategoryId, "all">;
     authorTag: FeedAuthorTag;
-    prefix?: string; // 말머리. 목업·브라우저 저장 글에는 없을 수 있습니다.
+    prefix?: string; // 말머리
     title: string;
     authorName: string;
     thumbnailUrl: string | null;

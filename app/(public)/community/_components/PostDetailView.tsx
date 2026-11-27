@@ -13,10 +13,8 @@ interface PostDetailViewProps {
     post: CommunityPostDetail;
 }
 
-// 게시글 상세 화면입니다. 서버(목 데이터 글)와 클라이언트(이 브라우저에서 쓴 글)가 같이 사용합니다.
+// 게시글 상세 화면입니다.
 export default function PostDetailView({ post }: PostDetailViewProps) {
-    const isServerPost = !!post.isServerPost;
-
     return (
         // 페이지 배경은 화면 폭 전체에 깔리도록 가상 요소로 그립니다.
         <div className="relative isolate pb-[76px] font-pretendard text-ink before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-surface-alt">
@@ -47,7 +45,7 @@ export default function PostDetailView({ post }: PostDetailViewProps) {
                                 <p className="mt-0.5 text-xs text-mute-light">우리의 소중한 순간 나눠요</p>
                             </div>
                         </div>
-                        {isServerPost && <PostOwnerActions key={post.id} postId={post.id} />}
+                        <PostOwnerActions key={post.id} postId={post.id} />
                     </div>
 
                     {post.attachments ? (
@@ -70,18 +68,18 @@ export default function PostDetailView({ post }: PostDetailViewProps) {
                     </ul>
 
                     <div className="mt-5 flex h-14 items-center gap-6 border-y border-line text-sm text-mute">
-                        <CommunityLikeButton key={post.id} postId={post.id} baseLikes={post.likes} isServerPost={isServerPost} />
+                        <CommunityLikeButton key={post.id} postId={post.id} baseLikes={post.likes} />
                         <span className="flex items-center gap-1.5">
                             <MessageCircle aria-hidden="true" className="size-3.5" />
-                            댓글 <PostCommentCount postId={post.id} initialCount={post.comments} isServerPost={isServerPost} />
+                            댓글 <PostCommentCount postId={post.id} initialCount={post.comments} />
                         </span>
                         <span className="flex items-center gap-1.5">
                             <Eye aria-hidden="true" className="size-3.5" />
-                            조회 <PostViewCount key={post.id} postId={post.id} initialCount={post.views} isServerPost={isServerPost} />
+                            조회 <PostViewCount key={post.id} postId={post.id} initialCount={post.views} />
                         </span>
                     </div>
 
-                    <CommunityCommentSection key={post.id} postId={post.id} initialComments={post.commentList} initialCount={post.comments} isServerPost={isServerPost} />
+                    <CommunityCommentSection key={post.id} postId={post.id} initialCount={post.comments} />
                 </article>
 
                 <aside aria-label="추천 정보">

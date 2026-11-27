@@ -7,7 +7,6 @@ import PostCard from "./PostCard";
 interface PostListProps {
     posts: FeedPost[];
     loading: boolean;
-    loadingMoreCount?: number;
     error: boolean;
     searchQuery: string;
     writeHref: string;
@@ -41,7 +40,7 @@ function StateBox({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
-export default function PostList({ posts, loading, loadingMoreCount = 0, error, searchQuery, writeHref, onRetry, onClearSearch }: PostListProps) {
+export default function PostList({ posts, loading, error, searchQuery, writeHref, onRetry, onClearSearch }: PostListProps) {
     if (error) {
         return (
             <div role="alert">
@@ -65,7 +64,7 @@ export default function PostList({ posts, loading, loadingMoreCount = 0, error, 
     }
 
     return (
-        <ul aria-busy={loading || loadingMoreCount > 0} className="flex flex-col gap-[25px]">
+        <ul aria-busy={loading} className="flex flex-col gap-[25px]">
             {loading
                 ? Array.from({ length: SKELETON_COUNT }, (_, index) => <PostCardSkeleton key={index} />)
                 : posts.map((post) => (
@@ -73,7 +72,6 @@ export default function PostList({ posts, loading, loadingMoreCount = 0, error, 
                         <PostCard post={post} />
                     </li>
                 ))}
-            {!loading && Array.from({ length: loadingMoreCount }, (_, index) => <PostCardSkeleton key={`more-${index}`} />)}
         </ul>
     );
 }
