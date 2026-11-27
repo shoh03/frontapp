@@ -7,7 +7,7 @@ import PostCard from "./PostCard";
 interface PostListProps {
     posts: FeedPost[];
     loading: boolean;
-    loadingMoreCount: number;
+    loadingMoreCount?: number;
     error: boolean;
     searchQuery: string;
     writeHref: string;
@@ -41,7 +41,7 @@ function StateBox({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
-export default function PostList({ posts, loading, loadingMoreCount, error, searchQuery, writeHref, onRetry, onClearSearch }: PostListProps) {
+export default function PostList({ posts, loading, loadingMoreCount = 0, error, searchQuery, writeHref, onRetry, onClearSearch }: PostListProps) {
     if (error) {
         return (
             <div role="alert">

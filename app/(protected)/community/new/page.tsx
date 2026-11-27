@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import CommunityWriteForm from "@/app/(public)/community/_components/CommunityWriteForm";
+import { FEED_CATEGORIES } from "@/app/(public)/community/_constants/feed";
+import { BOARDS } from "@/app/(public)/community/_constants/write";
 
 const writeFormId = "community-write-form";
 
@@ -10,7 +13,17 @@ export const metadata: Metadata = {
     description: "엄마, 아빠의 하루를 편안하게 들려주세요.",
 };
 
-export default function Page() {
+type SearchParams = Promise<{ category?: string | string[] }>;
+
+// 주소의 ?category= 값을 게시판 기본값으로 씁니다. 요청마다 다른 값이라 Suspense 안에서 읽습니다.
+async function WriteForm({ searchParams }: { searchParams: SearchParams }) {
+    const { category } = await searchParams;
+    const label = FEED_CATEGORIES.find((item) => item.id === category)?.label;
+
+    return <CommunityWriteForm formId={writeFormId} defaultCategory={BOARDS.find((board) => board === label)} />;
+}
+
+export default function Page({ searchParams }: { searchParams: SearchParams }) {
     return (
         <div className="pb-16 font-pretendard text-[#253B3A]">
             <Link href="/community" className="inline-flex items-center gap-2 pt-8 text-sm font-semibold text-[#7F8F86] hover:text-primary">
@@ -40,7 +53,9 @@ export default function Page() {
             </section>
 
             <div className="mt-12">
-                <CommunityWriteForm formId={writeFormId} />
+                <Suspense fallback={<p className="py-20 text-center">글쓰기 화면을 불러오는 중...</p>}>
+                    <WriteForm searchParams={searchParams} />
+                </Suspense>
             </div>
         </div>
     );

@@ -12,6 +12,7 @@ import {
     LOAD_MORE_COUNT,
     LOAD_MORE_DELAY_MS,
     SEARCH_DEBOUNCE_MS,
+    WRITE_POST_PATH,
 } from "../_constants/feed";
 import useHydrated from "../_hooks/useHydrated";
 import CategoryList from "./CategoryList";
@@ -22,7 +23,7 @@ import PopularProductCard from "./PopularProductCard";
 import PostList from "./PostList";
 import PostSearchInput from "./PostSearchInput";
 import SortTabs from "./SortTabs";
-import WritePostButton, { getWritePostHref } from "./WritePostButton";
+import WritePostButton from "./WritePostButton";
 
 const DAILY_QUOTE = "완벽하지 않아도 괜찮아요.\n오늘도 충분히 잘하고 있어요. 💛";
 
@@ -40,7 +41,6 @@ export default function CommunityPage() {
 
     const hydrated = useHydrated();
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-    const isLoggedIn = hydrated && isAuthenticated;
 
     const posts = useQuery({
         queryKey: ["community", "posts", { category, sort, q: query, page }],
@@ -129,7 +129,7 @@ export default function CommunityPage() {
     return (
         <div className="relative mt-[30px] pb-16">
             <div className="absolute -top-[26px] right-0">
-                <WritePostButton isLoggedIn={isLoggedIn} />
+                <WritePostButton />
             </div>
 
             <div className="grid grid-cols-[294px_682px_288px] items-start gap-7">
@@ -158,7 +158,7 @@ export default function CommunityPage() {
                             loadingMoreCount={loadingMoreCount}
                             error={posts.isError}
                             searchQuery={query}
-                            writeHref={getWritePostHref(isLoggedIn)}
+                            writeHref={WRITE_POST_PATH}
                             onRetry={() => posts.refetch()}
                             onClearSearch={handleClearSearch}
                         />

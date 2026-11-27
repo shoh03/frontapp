@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import CommunityLayout from "./_components/CommunityLayout";
 
 export const metadata: Metadata = {
@@ -18,7 +19,10 @@ export default function Page() {
             <h1 className="mt-[29px] font-nanum-square-round text-5xl leading-[1.2] font-extrabold">
                 우리의 이야기가 <span className="text-primary">모이는 곳</span>
             </h1>
-            <CommunityLayout />
+            {/* 주소의 ?page= 값은 요청마다 달라서 Suspense 안에서 읽습니다. */}
+            <Suspense fallback={<p className="py-20 text-center">게시글을 불러오는 중...</p>}>
+                <CommunityLayout />
+            </Suspense>
         </div>
     );
 }

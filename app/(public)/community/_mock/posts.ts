@@ -36,6 +36,8 @@ const titlesByCategory: Record<FeedPost["category"], string[]> = {
 const categoryOrder: FeedPost["category"][] = ["pregnancy", "parenting", "neighborhood", "living"];
 const authorNames = ["초코라떼맘", "승현맘", "포근한토리", "동그람이", "살구잼", "따뜻한햇살", "아기별맘", "구름빵"];
 
+const THUMBNAILS = ["/image/community/community.png", "/image/community/communityview.png", "/image/community/communitypost.png"];
+
 const createdAtBase = Date.now();
 
 const posts: FeedPost[] = Array.from({ length: 48 }, (_, index) => {
@@ -48,7 +50,7 @@ const posts: FeedPost[] = Array.from({ length: 48 }, (_, index) => {
         authorTag: category === "parenting" || index % 3 === 1 ? "육아맘" : "예비맘",
         title: titles[Math.floor(index / categoryOrder.length) % titles.length],
         authorName: authorNames[index % authorNames.length],
-        thumbnailUrl: index % 4 === 3 ? null : `/image/community/${(index % 3) + 1}.png`,
+        thumbnailUrl: index % 4 === 3 ? null : THUMBNAILS[index % THUMBNAILS.length],
         likeCount: 42 + ((index * 53) % 1100),
         commentCount: 13 + ((index * 7) % 40),
         viewCount: 900 - ((index * 37) % 700),
@@ -68,7 +70,7 @@ export const queryMockPosts = ({ category, sort, q, page, size }: FeedPostListPa
     const keyword = q.trim().toLocaleLowerCase();
     const filtered = [...extraPosts, ...posts]
         .filter((post) => (category === "all" || post.category === category) && post.title.toLocaleLowerCase().includes(keyword))
-        .sort((a, b) => (sort === "latest" ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : b.viewCount - a.viewCount));
+        .sort((a, b) => (sort === "latest" ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : b.likeCount * 10 + b.viewCount - (a.likeCount * 10 + a.viewCount)));
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / size));
     const currentPage = Math.min(Math.max(1, page), totalPages);

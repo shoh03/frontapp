@@ -1,11 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
+import LoginRedirectKeeper from "@/components/auth/LoginRedirectKeeper";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export default function Page() {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-[#f1f1f1] p-6">
+            <LoginRedirectKeeper />
             <section className="flex h-203 w-183.25 max-w-full flex-col items-center rounded-[40px] bg-white pt-17.25 pr-21.75 pl-22.5">
                 <div className="flex h-12.5 items-center gap-2.5" aria-label="NESTEP">
                     <Image

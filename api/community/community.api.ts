@@ -1,5 +1,13 @@
 import { findMockPostById } from "@/app/(public)/community/_mock/posts";
-import type { CommunityCategory, CommunityPost, CommunityPostDetail, CommunityPostPayload, ServerPostDetail } from "@/types/community/community.type";
+import type {
+    CommunityCategory,
+    CommunityPost,
+    CommunityPostDetail,
+    CommunityPostEditData,
+    CommunityPostPayload,
+    ServerPostDetail,
+    ServerPostEdit,
+} from "@/types/community/community.type";
 import type { FeedPost } from "@/types/community/communityFeed.type";
 
 const feedCategoryLabels: Record<FeedPost["category"], CommunityCategory> = {
@@ -26,6 +34,7 @@ export const toPostDetail = (post: FeedPost, contents: string[] = [post.title]):
         id: String(post.id),
         badge: post.authorTag === "예비맘" ? "예비맘" : "아이맘",
         category,
+        prefix: post.prefix,
         title: post.title,
         body: post.title,
         tags: [`#${category}`],
@@ -113,8 +122,10 @@ export const getCommunityPosts = async (): Promise<CommunityPost[]> => {
 // 상세 화면용 목업입니다. 본문 문단과 댓글은 첫 번째 게시글만 준비되어 있습니다.
 export const getCommunityPost = async (postId: string): Promise<CommunityPostDetail | null> => {
     // 서버에 저장된 글을 먼저 찾고, 없으면 아래 목업에서 찾습니다.
-    const serverPost = await fetchServerPost(postId);
+    const { post: serverPost, missing } = await requestServerPost(postId);
     if (serverPost) return serverPost;
+    // 서버가 없는 글(삭제한 글 포함)이라고 답하면 목업으로 대신하지 않습니다.
+    if (missing) return null;
 
     const post = communityPostsMock.find((item) => item.id === postId);
     if (!post) {
@@ -154,8 +165,11 @@ export const fromServerPost = (post: ServerPostDetail): CommunityPostDetail => {
 
     return {
         id: String(post.id),
+        isServerPost: true,
+        isMine: post.isMine,
         badge: post.authorTag === "육아맘" ? "아이맘" : "예비맘",
         category,
+        prefix: post.prefix,
         title: post.title,
         body: post.content,
         tags: [`#${category}`, `#${post.prefix}`],
@@ -170,49 +184,55 @@ export const fromServerPost = (post: ServerPostDetail): CommunityPostDetail => {
         commentList: [],
         attachments: {
             photos: post.photos,
-            video: post.video,
+            videos: post.videos,
             place: post.place,
             poll: post.poll
                 ? {
                     question: post.poll.question,
                     options: post.poll.options.map((option) => option.text),
                     votes: post.poll.options.map((option) => option.votes),
-                    myVote: post.poll.myVote,
+                    allowMultiple: post.poll.allowMultiple,
+                    voterCount: post.poll.voterCount,
+                    myVotes: post.poll.myVotes,
                 }
                 : null,
         },
     };
 };
 
-// 서버에서 게시글 상세를 읽습니다. 없거나 서버에 닿지 못하면 null 입니다. 투표 여부는 쿠키가 필요해 브라우저에서 다시 읽습니다.
-export const fetchServerPost = async (postId: string, withCredentials = false): Promise<CommunityPostDetail | null> => {
-    if (!/^\d+$/.test(postId)) return null;
+// missing 은 서버가 "없는 글"(404)이라고 답한 경우입니다. 서버에 닿지 못한 것과 구분합니다.
+const requestServerPost = async (postId: string, withCredentials = false): Promise<{ post: CommunityPostDetail | null; missing: boolean }> => {
+    if (!/^\d+$/.test(postId)) return { post: null, missing: false };
     try {
         const response = await fetch(`${BACKEND_URL}/communities/posts/${postId}`, {
             cache: "no-store",
             ...(withCredentials ? { credentials: "include" as const } : {}),
         });
-        if (!response.ok) return null;
+        if (!response.ok) return { post: null, missing: response.status === 404 };
         const body: ServerApiResponse<ServerPostDetail> = await response.json();
-        return body.data ? fromServerPost(body.data) : null;
+        return { post: body.data ? fromServerPost(body.data) : null, missing: false };
     } catch {
-        return null;
+        return { post: null, missing: false };
     }
 };
 
-// 투표합니다(회원당 1회). 갱신된 게시글을 돌려줍니다.
-export const voteCommunityPost = async (postId: string, optionIndex: number): Promise<CommunityPostDetail> => {
+// 서버에서 게시글 상세를 읽습니다. 없거나 서버에 닿지 못하면 null 입니다. 투표·작성자 여부는 쿠키가 필요해 브라우저에서 다시 읽습니다.
+export const fetchServerPost = async (postId: string, withCredentials = false): Promise<CommunityPostDetail | null> =>
+    (await requestServerPost(postId, withCredentials)).post;
+
+// 투표합니다(회원당 1회, 단일 선택이면 항목 1개). 갱신된 게시글을 돌려줍니다.
+export const voteCommunityPost = async (postId: string, optionIndexes: number[]): Promise<CommunityPostDetail> => {
     const response = await fetch(`${BACKEND_URL}/communities/posts/${postId}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ optionIndex }),
-    });
-    if (response.status === 401) throw new Error("로그인이 필요합니다.");
-    if (response.status === 409) throw new Error("이미 투표했습니다.");
-    if (!response.ok) throw new Error("투표에 실패했습니다.");
-    const body: ServerApiResponse<ServerPostDetail> = await response.json();
-    if (!body.data) throw new Error("투표에 실패했습니다.");
+        body: JSON.stringify({ optionIndexes }),
+    }).catch(() => null);
+    if (response?.status === 401) throw new Error("로그인이 필요합니다.");
+    if (response?.status === 409) throw new Error("이미 투표했습니다.");
+    if (!response?.ok) throw new Error("투표에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    const body: ServerApiResponse<ServerPostDetail> | null = await response.json().catch(() => null);
+    if (!body?.data) throw new Error("투표에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     return fromServerPost(body.data);
 };
 
@@ -238,30 +258,70 @@ const uploadToS3 = async <T>(path: "image" | "general-file", file: File): Promis
     return body.data;
 };
 
-// 게시글을 등록합니다. 사진·동영상을 S3에 올린 뒤 그 key/url 과 함께 서버에 저장합니다.
-// 서버가 로그인(쿠키)을 확인하므로 비로그인이면 401 로 실패합니다.
-export const createCommunityPost = async (payload: CommunityPostPayload): Promise<void> => {
-    const [photos, video] = await Promise.all([
+// 사진·동영상을 S3에 올리고, 그 key/url 을 담은 요청 본문을 만듭니다.
+const buildPostBody = async (payload: CommunityPostPayload) => {
+    const [photos, videos] = await Promise.all([
         Promise.all(payload.photos.map((file) => uploadToS3<UploadedImage>("image", file))),
-        payload.video ? uploadToS3<UploadedFile>("general-file", payload.video.file) : Promise.resolve(null),
+        Promise.all(payload.videos.map(async ({ file, duration }) => {
+            const uploaded = await uploadToS3<UploadedFile>("general-file", file);
+            return { key: uploaded.fileKey, url: uploaded.fileUrl, duration };
+        })),
     ]);
 
+    return {
+        category: feedCategoryIds[payload.category],
+        prefix: payload.prefix,
+        title: payload.title,
+        content: payload.content,
+        isPublic: payload.isPublic,
+        photos: photos.map((photo) => ({ key: photo.originalKey, url: photo.originalUrl, thumbUrl: photo.thumbUrl })),
+        videos,
+        place: payload.place,
+        poll: payload.poll,
+    };
+};
+
+// 게시글을 등록합니다. 서버가 로그인(쿠키)을 확인하므로 비로그인이면 401 로 실패합니다.
+export const createCommunityPost = async (payload: CommunityPostPayload): Promise<void> => {
     const response = await fetch(`${BACKEND_URL}/communities/posts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-            category: feedCategoryIds[payload.category],
-            prefix: payload.prefix,
-            title: payload.title,
-            content: payload.content,
-            isPublic: payload.isPublic,
-            photos: photos.map((photo) => ({ key: photo.originalKey, url: photo.originalUrl, thumbUrl: photo.thumbUrl })),
-            video: video && payload.video ? { key: video.fileKey, url: video.fileUrl, duration: payload.video.duration } : null,
-            place: payload.place,
-            poll: payload.poll,
-        }),
+        body: JSON.stringify(await buildPostBody(payload)),
     });
     if (response.status === 401) throw new Error("로그인이 필요합니다.");
     if (!response.ok) throw new Error("게시글 등록에 실패했습니다.");
+};
+
+// 수정 화면에 채울 내 게시글을 읽습니다.
+export const getPostForEdit = async (postId: string): Promise<CommunityPostEditData> => {
+    const failed = "게시글을 불러오지 못했어요.";
+    const response = await fetch(`${BACKEND_URL}/communities/posts/${encodeURIComponent(postId)}/edit`, {
+        cache: "no-store",
+        credentials: "include",
+    }).catch(() => null);
+    if (response?.status === 401) throw new Error("로그인이 필요합니다.");
+    if (response?.status === 403) throw new Error("본인이 쓴 글만 수정할 수 있어요.");
+    if (response?.status === 404) throw new Error("게시글을 찾을 수 없어요.");
+    if (!response?.ok) throw new Error(failed);
+    const body: ServerApiResponse<ServerPostEdit> = await response.json();
+    if (!body.data) throw new Error(failed);
+    return { ...body.data, id: String(body.data.id), category: feedCategoryLabels[body.data.category] };
+};
+
+// 게시글을 수정합니다. payload 의 파일은 새로 추가한 것이고, 남길 기존 첨부는 id 로 보냅니다.
+export const updateCommunityPost = async (
+    postId: string,
+    payload: CommunityPostPayload,
+    keep: { photoIds: number[]; videoIds: number[] },
+): Promise<void> => {
+    const response = await fetch(`${BACKEND_URL}/communities/posts/${postId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ...(await buildPostBody(payload)), keepPhotoIds: keep.photoIds, keepVideoIds: keep.videoIds }),
+    });
+    if (response.status === 401) throw new Error("로그인이 필요합니다.");
+    if (response.status === 409) throw new Error("참여한 사람이 생겨 투표를 바꿀 수 없어요. 화면을 새로고침해 주세요.");
+    if (!response.ok) throw new Error("게시글 수정에 실패했습니다.");
 };

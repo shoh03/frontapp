@@ -169,6 +169,7 @@ button {
     --color-promo-link: #6B4E9B;
     --color-quote-bg: #FFF7C9;
     --color-sale: #E0808F;
+    --color-warning: #E0808F;
 
     /* 카테고리 식별 색 */
     --color-cat-all: #00A98D;

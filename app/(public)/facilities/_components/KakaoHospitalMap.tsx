@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { getKakaoMapKey, getKakaoMapSrc, KAKAO_MAP_SCRIPT_ID } from "@/lib/kakaoMap";
 import type { KakaoMap, KakaoOverlay } from "@/types/facilities/kakao-map.type";
 import type {
   MapBounds,
@@ -35,7 +36,7 @@ export default function KakaoHospitalMap({
   onLocate,
   isLocating,
 }: Props) {
-  const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY?.trim();
+  const key = getKakaoMapKey();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<KakaoMap | null>(null);
   const initialCenter = useRef(center);
@@ -217,8 +218,8 @@ export default function KakaoHospitalMap({
     >
       {key && (
         <Script
-          id="kakao-hospital-map-sdk"
-          src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&autoload=false`}
+          id={KAKAO_MAP_SCRIPT_ID}
+          src={getKakaoMapSrc(key)}
           strategy="afterInteractive"
           onReady={() => {
             if (window.kakao?.maps) setSdkReady(true);

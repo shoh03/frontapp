@@ -4,7 +4,7 @@ import { FOCUS_RING, LOGIN_PATH } from "../_constants/feed";
 // 카드 전체가 로그인 이동 영역입니다. 로그인 상태에서는 상위(CommunityPage)가 렌더하지 않습니다.
 export default function JoinPromoBanner() {
     return (
-        <Link href={LOGIN_PATH} className={`block rounded-feed-lg bg-promo-bg px-4 pt-[21px] pb-[22px] ${FOCUS_RING}`}>
+        <Link href={`${LOGIN_PATH}?redirect=/community`} className={`block rounded-feed-lg bg-promo-bg px-4 pt-[21px] pb-[22px] ${FOCUS_RING}`}>
             <span aria-hidden="true" className="block text-xs">🔔</span>
             <span className="mt-2 block text-sm font-bold text-promo-title">함께라서 더 든든해요</span>
             <span className="mt-2 block text-sm leading-5 text-promo-body">

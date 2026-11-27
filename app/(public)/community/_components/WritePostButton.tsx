@@ -1,18 +1,13 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { FOCUS_RING, LOGIN_PATH, WRITE_POST_PATH } from "../_constants/feed";
+import { FOCUS_RING, WRITE_POST_PATH } from "../_constants/feed";
 
-interface WritePostButtonProps {
-    isLoggedIn: boolean;
-}
-
-// 비로그인 상태에서도 숨기거나 비활성화하지 않고, 로그인 후 돌아올 경로를 붙여 로그인으로 보냅니다.
-export const getWritePostHref = (isLoggedIn: boolean) => (isLoggedIn ? WRITE_POST_PATH : `${LOGIN_PATH}?redirect=${WRITE_POST_PATH}`);
-
-export default function WritePostButton({ isLoggedIn }: WritePostButtonProps) {
+// 로그인 여부는 화면 상태가 아니라 middleware 가 로그인 쿠키로 판단합니다.
+// 비로그인이면 middleware 가 /login?redirect=/community/new 로 보내고, 로그인 후에는 작성 페이지로 돌아옵니다.
+export default function WritePostButton({ href = WRITE_POST_PATH }: { href?: string }) {
     return (
         <Link
-            href={getWritePostHref(isLoggedIn)}
+            href={href}
             className={`inline-flex h-[52px] w-[170px] items-center justify-center gap-2 rounded-full bg-primary text-base font-bold text-white transition-colors hover:bg-brand-hover ${FOCUS_RING}`}
         >
             <Plus aria-hidden="true" className="size-4" />

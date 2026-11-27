@@ -37,7 +37,18 @@ export const getFeedPosts = async (params: FeedPostListParams): Promise<FeedPost
     };
 };
 
+// 매일 09:00(KST) 기준 인기상품입니다. 서버에 닿지 못할 때만 목업으로 대신합니다.
 export const getPopularProducts = async (): Promise<PopularProduct[]> => {
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/babyshop/popular-products`);
+        if (response.ok) {
+            const body: { data: PopularProduct[] | null } = await response.json();
+            if (body.data) return body.data;
+        }
+    } catch {
+        // 네트워크 오류는 목업으로 대신합니다.
+    }
+
     await wait(MOCK_LATENCY_MS);
     return mockPopularProducts;
 };

@@ -3,19 +3,24 @@
 import { useState, type FormEvent } from "react";
 import { Send } from "lucide-react";
 
+const MAX_COMMENT_LENGTH = 1000;
+
 interface CommunityCommentFormProps {
-    onSubmit: (content: string) => void;
+    // false 를 돌려주면 저장에 실패한 것이므로 입력한 글을 남깁니다.
+    onSubmit: (content: string) => Promise<boolean>;
 }
 
 export default function CommunityCommentForm({ onSubmit }: CommunityCommentFormProps) {
     const [draft, setDraft] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const trimmed = draft.trim();
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!trimmed) return;
-        onSubmit(trimmed);
-        setDraft("");
+        if (!trimmed || isSubmitting) return;
+        setIsSubmitting(true);
+        if (await onSubmit(trimmed)) setDraft("");
+        setIsSubmitting(false);
     };
 
     return (
@@ -26,13 +31,15 @@ export default function CommunityCommentForm({ onSubmit }: CommunityCommentFormP
                 id="community-comment"
                 type="text"
                 value={draft}
+                maxLength={MAX_COMMENT_LENGTH}
+                readOnly={isSubmitting}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="응원의 댓글을 남겨보세요"
                 className="h-10 min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-mute-light focus-visible:outline-2 focus-visible:outline-brand-text"
             />
             <button
                 type="submit"
-                disabled={!trimmed}
+                disabled={!trimmed || isSubmitting}
                 aria-label="댓글 등록"
                 className="flex size-10 shrink-0 items-center justify-center rounded-feed-md bg-primary text-white hover:bg-brand-hover disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-text"
             >

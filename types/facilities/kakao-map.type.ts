@@ -31,8 +31,30 @@ export interface KakaoOverlay {
   setZIndex(index: number): void;
 }
 
+// 장소 키워드 검색 결과 한 건입니다. SDK 는 x 에 경도, y 에 위도를 문자열로 줍니다.
+export interface KakaoPlaceResult {
+  id: string;
+  place_name: string;
+  address_name: string;
+  road_address_name: string;
+  x: string;
+  y: string;
+}
+
+// libraries=services 로 불러온 경우에 생기는 장소 검색 API 입니다.
+export interface KakaoServices {
+  Places: new () => {
+    keywordSearch(
+      keyword: string,
+      callback: (results: KakaoPlaceResult[], status: string) => void,
+    ): void;
+  };
+  Status: { OK: string; ZERO_RESULT: string; ERROR: string };
+}
+
 // 스크립트 로딩 후 window.kakao.maps에 생기는 생성자와 함수들의 타입입니다.
 export interface KakaoMaps {
+  services: KakaoServices;
   // autoload=false로 불러온 SDK를 초기화하고 준비되면 callback을 실행합니다.
   load(callback: () => void): void;
   // new maps.LatLng(위도, 경도)로 좌표 객체를 생성할 수 있다는 선언입니다.

@@ -54,8 +54,9 @@ export const getCurrentUserApi = async (signal?: AbortSignal): Promise<UserDTO |
 
 // 로그아웃 함수
 export const logoutApi = async (): Promise<ApiResponseDTO> => {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`,
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const requestLogout = () => fetch(
+    `${backendUrl}/auth/logout`,
     {
       method: "POST",
       headers: {
@@ -64,6 +65,20 @@ export const logoutApi = async (): Promise<ApiResponseDTO> => {
       credentials: "include",
     },
   );
+  let response = await requestLogout();
+
+  if (response.status === 401) {
+    // 로그아웃 API는 access_token이 필요하므로, 만료됐으면 한 번만 재발급받고 다시 요청합니다.
+    const refreshResponse = await fetch(`${backendUrl}/auth/refresh`, { credentials: "include", cache: "no-store" });
+    const expired: ApiResponseDTO = { success: true, message: "이미 만료된 로그인입니다.", data: null };
+    if (refreshResponse.status === 401 || refreshResponse.status === 403) return expired;
+    if (refreshResponse.ok) {
+      // refresh_token까지 만료되면 백엔드가 쿠키를 지우고 success: false를 반환합니다.
+      const refreshed: ApiResponseDTO = await refreshResponse.json();
+      if (!refreshed.success) return expired;
+      response = await requestLogout();
+    }
+  }
 
   if (!response.ok) {
     throw new Error(
