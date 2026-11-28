@@ -24,6 +24,8 @@ import {
     MAX_VIDEOS,
     MIN_POLL_OPTIONS,
 } from "../_constants/write";
+import { insertMedia, removeMedia, serializeContent, toEditorContent, toSavedKey, type EditorCursor, type EditorMedia } from "../_utils/editorContent";
+import PostContentEditor from "./PostContentEditor";
 import PlaceSearch from "./PlaceSearch";
 
 interface CommunityWriteFormProps {
@@ -69,7 +71,10 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
     const [category, setCategory] = useState<CommunityCategory>(startCategory);
     const [prefix, setPrefix] = useState<CommunityPrefix>(() => toPrefix(startCategory, initialPost?.prefix));
     const [title, setTitle] = useState(initialPost?.title ?? "");
-    const [content, setContent] = useState(initialPost?.content ?? "");
+    // 본문과, 본문 사이에 놓인 첨부의 위치입니다.
+    const [content, setContent] = useState(() => toEditorContent(initialPost));
+    // 첨부를 끼워 넣을 자리입니다. 본문을 누른 적이 없으면 글 끝입니다.
+    const cursorRef = useRef<EditorCursor>({ index: Number.MAX_SAFE_INTEGER, position: Number.MAX_SAFE_INTEGER });
     // 수정할 때 남아 있는 기존 첨부입니다. 아래 photos·videos 는 새로 고른 파일입니다.
     const [savedPhotos, setSavedPhotos] = useState(initialPost?.photos ?? []);
     const [savedVideos, setSavedVideos] = useState(initialPost?.videos ?? []);
@@ -82,6 +87,7 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
     const [pollOptions, setPollOptions] = useState<string[]>(initialPost?.poll?.options ?? ["", ""]);
     const [pollMultiple, setPollMultiple] = useState(initialPost?.poll?.allowMultiple ?? false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isReadingVideos, setIsReadingVideos] = useState(false);
     const isPollLocked = !!initialPost?.poll?.locked;
 
     // 이 페이지는 상태가 보존되므로, 새로 들어올 때(bfcacheId 변경)마다 게시판만 기본값으로 다시 맞춥니다.
@@ -95,9 +101,21 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
             setPrefix(toPrefix(defaultCategory, prefix));
         }
     }
-    const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !isSubmitting;
+    const canSubmit = title.trim().length > 0 && content.texts.join("").trim().length > 0 && !isSubmitting;
 
-    const handlePhotos = (event: ChangeEvent<HTMLInputElement>) => {
+    // 새로 고른 첨부를 커서 자리에 넣고, 다음 첨부가 그 뒤에 이어지도록 커서를 옮깁니다.
+    const placeMedia = (added: EditorMedia[]) => {
+        if (added.length === 0) return;
+        const cursor = cursorRef.current;
+        setContent((prev) => {
+            const next = insertMedia(prev, cursor, added);
+            const last = next.media.findIndex((item) => item.key === added[added.length - 1].key);
+            cursorRef.current = { index: last + 1, position: 0 };
+            return next;
+        });
+    };
+
+    const handlePhotos =(event: ChangeEvent<HTMLInputElement>) => {
         const picked = Array.from(event.target.files ?? []);
         event.target.value = "";
 
@@ -107,17 +125,15 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
         const added = valid.slice(0, MAX_PHOTOS - savedPhotos.length - photos.length).map((file) => ({ file, preview: URL.createObjectURL(file) }));
         if (valid.length > added.length) window.alert(`사진은 최대 ${MAX_PHOTOS}장까지 첨부할 수 있어요.`);
         setPhotos((prev) => [...prev, ...added]);
-    };
-
-    const removePhoto = (index: number) => {
-        URL.revokeObjectURL(photos[index].preview);
-        setPhotos((prev) => prev.filter((_, i) => i !== index));
+        placeMedia(added.map((photo) => ({ kind: "photo", key: photo.preview })));
     };
 
     const handleVideos = async (event: ChangeEvent<HTMLInputElement>) => {
         const picked = Array.from(event.target.files ?? []);
         event.target.value = "";
 
+        // 길이를 읽는 동안에는 다시 고르지 못하게 합니다.
+        setIsReadingVideos(true);
         const added: VideoItem[] = [];
         const errors = new Set<string>();
         for (const file of picked) {
@@ -143,14 +159,21 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
         const accepted = added.slice(0, MAX_VIDEOS - savedVideos.length - videos.length);
         if (added.length > accepted.length) errors.add(`동영상은 최대 ${MAX_VIDEOS}개까지 첨부할 수 있어요.`);
         added.slice(accepted.length).forEach((item) => URL.revokeObjectURL(item.url));
-        // 길이를 읽는 동안 다시 선택했을 수 있으므로 최신 목록 기준으로 한 번 더 자릅니다.
-        setVideos((prev) => [...prev, ...accepted].slice(0, MAX_VIDEOS - savedVideos.length));
+        setVideos((prev) => [...prev, ...accepted]);
+        placeMedia(accepted.map((video) => ({ kind: "video", key: video.url })));
+        setIsReadingVideos(false);
         if (errors.size > 0) window.alert([...errors].join("\n"));
     };
 
-    const removeVideo = (index: number) => {
-        URL.revokeObjectURL(videos[index].url);
-        setVideos((prev) => prev.filter((_, i) => i !== index));
+    // 본문에서 첨부를 빼면 파일 목록에서도 지웁니다.
+    const handleRemoveMedia = (key: string) => {
+        cursorRef.current = { index: Number.MAX_SAFE_INTEGER, position: Number.MAX_SAFE_INTEGER };
+        if (photos.some((photo) => photo.preview === key) || videos.some((video) => video.url === key)) URL.revokeObjectURL(key);
+        setContent((prev) => removeMedia(prev, key));
+        setPhotos((prev) => prev.filter((photo) => photo.preview !== key));
+        setVideos((prev) => prev.filter((video) => video.url !== key));
+        setSavedPhotos((prev) => prev.filter((photo) => toSavedKey("photo", photo.id) !== key));
+        setSavedVideos((prev) => prev.filter((video) => toSavedKey("video", video.id) !== key));
     };
 
     // 장소·투표를 삭제하면 입력란을 닫고 값도 비웁니다.
@@ -180,7 +203,8 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
         setCategory(startCategory);
         setPrefix(toPrefix(startCategory));
         setTitle("");
-        setContent("");
+        setContent(toEditorContent());
+        cursorRef.current = { index: Number.MAX_SAFE_INTEGER, position: Number.MAX_SAFE_INTEGER };
         setPhotos([]);
         setVideos([]);
         removePlace();
@@ -207,7 +231,11 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
             category,
             prefix,
             title: title.trim(),
-            content: content.trim(),
+            // 서버는 남긴 첨부 뒤에 새 첨부를 붙여 저장하므로, 같은 순서로 번호를 매깁니다.
+            content: serializeContent(content, {
+                photo: [...savedPhotos.map((photo) => toSavedKey("photo", photo.id)), ...photos.map((photo) => photo.preview)],
+                video: [...savedVideos.map((video) => toSavedKey("video", video.id)), ...videos.map((video) => video.url)],
+            }),
             photos: photos.map((photo) => photo.file),
             videos: videos.map(({ file, duration }) => ({ file, duration })),
             place: placeOpen ? place : null,
@@ -248,6 +276,13 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
         `flex w-16 flex-col items-center gap-1 rounded-lg py-2 text-xs hover:bg-[#F4F7F5] ${active ? "bg-[#F4F7F5] font-bold text-primary" : "text-[#61766D]"}`;
     const inputClass =
         "h-12 w-full rounded-xl border border-[#E1E9E4] px-4 text-base outline-none placeholder:text-[#98A89F] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20";
+
+    const previews = new Map<string, string>([
+        ...savedPhotos.map((photo): [string, string] => [toSavedKey("photo", photo.id), photo.url]),
+        ...savedVideos.map((video): [string, string] => [toSavedKey("video", video.id), video.url]),
+        ...photos.map((photo): [string, string] => [photo.preview, photo.preview]),
+        ...videos.map((video): [string, string] => [video.url, video.url]),
+    ]);
 
     return (
         <form id={formId} onSubmit={handleSubmit} className="rounded-3xl bg-white p-10 shadow-[0_6px_24px_rgb(0_0_0/0.04)]">
@@ -313,7 +348,7 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
                         <span aria-hidden="true" className="text-base">📷</span>
                         사진
                     </button>
-                    <button type="button" onClick={() => videoInputRef.current?.click()} className={toolbarClass(savedVideos.length + videos.length > 0)}>
+                    <button type="button" onClick={() => videoInputRef.current?.click()} disabled={isReadingVideos} className={toolbarClass(savedVideos.length + videos.length > 0)}>
                         <span aria-hidden="true" className="text-base">🎥</span>
                         동영상
                     </button>
@@ -329,64 +364,8 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
                     <input ref={videoInputRef} type="file" accept="video/*" multiple hidden onChange={handleVideos} />
                 </div>
 
-                {(savedPhotos.length + photos.length + savedVideos.length + videos.length > 0 || placeOpen || pollOpen) && (
+                {(placeOpen || pollOpen) && (
                     <div className="space-y-5 border border-b-0 border-[#E1E9E4] p-5">
-                        {savedPhotos.length + photos.length > 0 && (
-                            <ul className="flex flex-wrap gap-3">
-                                {savedPhotos.map((photo, index) => (
-                                    <li key={photo.id} className="relative">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={photo.url} alt={`기존 사진 ${index + 1}`} className="size-24 rounded-lg object-cover" />
-                                        <button
-                                            type="button"
-                                            aria-label={`기존 사진 ${index + 1} 삭제`}
-                                            onClick={() => setSavedPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
-                                            className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-[#253B3A] text-xs text-white"
-                                        >
-                                            ✕
-                                        </button>
-                                    </li>
-                                ))}
-                                {photos.map((photo, index) => (
-                                    <li key={photo.preview} className="relative">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={photo.preview} alt={`첨부 사진 ${index + 1}`} className="size-24 rounded-lg object-cover" />
-                                        <button
-                                            type="button"
-                                            aria-label={`사진 ${index + 1} 삭제`}
-                                            onClick={() => removePhoto(index)}
-                                            className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-[#253B3A] text-xs text-white"
-                                        >
-                                            ✕
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-
-                        {savedVideos.length + videos.length > 0 && (
-                            <ul className="flex flex-wrap gap-4">
-                                {savedVideos.map((video, index) => (
-                                    <li key={video.id} className="text-sm text-[#61766D]">
-                                        <video src={video.url} controls className="h-40 rounded-lg bg-black" />
-                                        <p className="mt-2 flex items-center justify-between gap-4">
-                                            <span>동영상 {video.duration}초</span>
-                                            <button type="button" aria-label={`기존 동영상 ${index + 1} 삭제`} onClick={() => setSavedVideos((prev) => prev.filter((item) => item.id !== video.id))} className="font-bold text-primary hover:underline">삭제</button>
-                                        </p>
-                                    </li>
-                                ))}
-                                {videos.map((video, index) => (
-                                    <li key={video.url} className="text-sm text-[#61766D]">
-                                        <video src={video.url} controls className="h-40 rounded-lg bg-black" />
-                                        <p className="mt-2 flex items-center justify-between gap-4">
-                                            <span>동영상 {video.duration}초</span>
-                                            <button type="button" aria-label={`동영상 ${index + 1} 삭제`} onClick={() => removeVideo(index)} className="font-bold text-primary hover:underline">삭제</button>
-                                        </p>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-
                         {placeOpen && <PlaceSearch value={place} onChange={setPlace} onRemove={removePlace} />}
 
                         {pollOpen && (
@@ -428,13 +407,15 @@ export default function CommunityWriteForm({ formId, initialPost, defaultCategor
                 )}
 
                 <label htmlFor={`${formId}-content`} className="sr-only">내용</label>
-                <textarea
+                <PostContentEditor
                     id={`${formId}-content`}
-                    value={content}
-                    onChange={(event) => setContent(event.target.value)}
-                    placeholder="경험이나 궁금한 점을 자유롭게 적어주세요."
-                    className="min-h-[560px] w-full resize-y rounded-b-xl border border-[#E1E9E4] p-6 text-lg leading-8 outline-none placeholder:text-[#98A89F] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                    content={content}
+                    previews={previews}
+                    cursorRef={cursorRef}
+                    onChange={setContent}
+                    onRemove={handleRemoveMedia}
                 />
+                <p className="mt-2 text-sm text-mute">사진·동영상은 본문에서 커서가 있는 자리에 들어가요.</p>
             </div>
         </form>
     );

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { fetchServerPost, voteCommunityPost } from "@/api/community/community.api";
 import type { CommunityAttachments } from "@/types/community/community.type";
-import { FOCUS_RING } from "../_constants/feed";
+import { PostPhoto, PostVideo } from "./PostMedia";
 import PostPlaceMap from "./PostPlaceMap";
 
 interface PostAttachmentsProps {
@@ -82,15 +82,12 @@ export default function PostAttachments({ attachments, postId }: PostAttachments
             {photos.length > 0 && (
                 <div className={`grid items-start gap-3 ${photos.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                     {photos.map((src, index) => (
-                        <a key={index} href={src} target="_blank" rel="noopener noreferrer" title="원본 크기로 보기" className={`mx-auto block max-w-full ${FOCUS_RING}`}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt={`첨부 사진 ${index + 1}`} className="max-w-full rounded-feed-lg" />
-                        </a>
+                        <PostPhoto key={index} src={src} alt={`첨부 사진 ${index + 1}`} />
                     ))}
                 </div>
             )}
             {videos.map((video) => (
-                <video key={video.url} src={video.url} controls className="w-full rounded-feed-lg bg-black" />
+                <PostVideo key={video.url} src={video.url} />
             ))}
             {place && (
                 <div className="space-y-3">

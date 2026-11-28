@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Eye, MessageCircle } from "lucide-react";
+import { parsePostContent, type PostMediaKind } from "@/lib/community/postContent";
 import type { CommunityPostDetail } from "@/types/community/community.type";
 import CommunityCommentSection from "./CommunityCommentSection";
 import CommunityLikeButton from "./CommunityLikeButton";
 import PostAttachments from "./PostAttachments";
 import PostCommentCount from "./PostCommentCount";
+import { PostPhoto, PostVideo } from "./PostMedia";
 import PostOwnerActions from "./PostOwnerActions";
 import PostViewCount from "./PostViewCount";
 import RelativeTime from "./RelativeTime";
@@ -15,6 +17,13 @@ interface PostDetailViewProps {
 
 // 게시글 상세 화면입니다.
 export default function PostDetailView({ post }: PostDetailViewProps) {
+    const photos = post.attachments?.photos ?? [];
+    const videos = post.attachments?.videos ?? [];
+    const blocks = parsePostContent(post.contents.join("\n"), { photo: photos.length, video: videos.length });
+    // 본문에 자리가 없는 첨부(위치를 지정하기 전에 쓴 글)는 본문 위에 보여 줍니다.
+    const isPlaced = (kind: PostMediaKind, index: number) =>
+        blocks.some((block) => block.type === "media" && block.kind === kind && block.index === index);
+
     return (
         // 페이지 배경은 화면 폭 전체에 깔리도록 가상 요소로 그립니다.
         <div className="relative isolate pb-[76px] font-pretendard text-ink before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-surface-alt">
@@ -50,15 +59,30 @@ export default function PostDetailView({ post }: PostDetailViewProps) {
 
                     {post.attachments ? (
                         // 글을 수정해 투표 항목이 바뀌면 투표 상태를 새로 만듭니다.
-                        <PostAttachments key={`${post.id}-${post.attachments.poll?.options.join("|")}`} attachments={post.attachments} postId={post.id} />
+                        <PostAttachments
+                            key={`${post.id}-${post.attachments.poll?.options.join("|")}`}
+                            attachments={{
+                                ...post.attachments,
+                                photos: photos.filter((_, index) => !isPlaced("photo", index)),
+                                videos: videos.filter((_, index) => !isPlaced("video", index)),
+                            }}
+                            postId={post.id}
+                        />
                     ) : (
                         <div aria-hidden="true" className="mt-[22px] h-[300px] rounded-feed-lg bg-placeholder" />
                     )}
 
                     <div className="mt-[22px] space-y-[15px] text-base leading-[30px]">
-                        {post.contents.map((paragraph, index) => (
-                            <p key={index}>{paragraph}</p>
-                        ))}
+                        {blocks.map((block, index) => {
+                            if (block.type === "text") {
+                                return block.text.split("\n").map((paragraph, line) => <p key={`${index}-${line}`}>{paragraph}</p>);
+                            }
+                            return block.kind === "photo" ? (
+                                <PostPhoto key={index} src={photos[block.index]} alt={`첨부 사진 ${block.index + 1}`} size={block.size} align={block.align} />
+                            ) : (
+                                <PostVideo key={index} src={videos[block.index].url} />
+                            );
+                        })}
                     </div>
 
                     <ul className="mt-[19px] flex flex-wrap gap-2">
